@@ -11,7 +11,8 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0]).
+-export([start_link/0,
+minute_measures/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -19,12 +20,13 @@ terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE).
 
--record(state, {}).
+-record(state, {sensor_pid}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
-
+minute_measures(PID) ->
+    gen_server:call(PID,{a_minute_of_measurements}, 90 * 1000).
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -51,7 +53,8 @@ gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-{ok, #state{}}.
+     PID = erlang:whereis(bmp085),
+    {ok, #state{sensor_pid = PID}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -67,9 +70,12 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({a_minute_of_measurements}, _From, State) ->
+    Reply =  sixty_seconds_measure(State#state.sensor_pid),
+    {reply, Reply, State};
 handle_call(_Request, _From, State) ->
-Reply = ok,
-{reply, Reply, State}.
+    Reply = ok,
+    {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -125,3 +131,17 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+sixty_seconds_measure(Sensor) ->
+sixty_seconds_measure(Sensor,[],60).
+
+sixty_seconds_measure(_Sensor,Result, 0) ->
+    lists:reverse(Result);
+sixty_seconds_measure(Sensor,Result, N) ->
+    {ok, Time, Temp, Pressure} = one_measurement(Sensor, 950),
+    sixty_seconds_measure(Sensor, [ {Time, Temp, Pressure} | Result], N-1).
+
+one_measurement(Sensor, Pause) ->
+    timer:sleep(Pause),
+    {ok, _Celsius, Fahrenheit} = bmp085:read_temp(Sensor),
+    {ok,Pressure} = bmp085:read_pressure(Sensor, standard),
+    {ok, erlang:localtime(), Fahrenheit, Pressure}.
