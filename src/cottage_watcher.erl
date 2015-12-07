@@ -12,11 +12,17 @@
 
 %% API
 -export([start_link/0,
-minute_measures/1]).
+	 minute_measures/1,
+	 min_temp/1,
+	 max_temp/1,
+	 min_pressure/1,
+	 max_pressure/1,
+	 avg_temp/1,
+	 avg_pressure/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-terminate/2, code_change/3]).
+	 terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE).
 
@@ -35,7 +41,7 @@ minute_measures(PID) ->
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -53,7 +59,7 @@ gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-     PID = erlang:whereis(bmp085),
+    PID = erlang:whereis(bmp085),
     {ok, #state{sensor_pid = PID}}.
 
 %%--------------------------------------------------------------------
@@ -88,7 +94,7 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast(_Msg, State) ->
-{noreply, State}.
+    {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -101,7 +107,7 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info(_Info, State) ->
-{noreply, State}.
+    {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -115,7 +121,7 @@ handle_info(_Info, State) ->
 %% @end
 %%--------------------------------------------------------------------
 terminate(_Reason, _State) ->
-ok.
+    ok.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -126,13 +132,13 @@ ok.
 %% @end
 %%--------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
-{ok, State}.
+    {ok, State}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 sixty_seconds_measure(Sensor) ->
-sixty_seconds_measure(Sensor,[],60).
+    sixty_seconds_measure(Sensor,[],60).
 
 sixty_seconds_measure(_Sensor,Result, 0) ->
     lists:reverse(Result);
@@ -145,3 +151,32 @@ one_measurement(Sensor, Pause) ->
     {ok, _Celsius, Fahrenheit} = bmp085:read_temp(Sensor),
     {ok,Pressure} = bmp085:read_pressure(Sensor, standard),
     {ok, erlang:localtime(), Fahrenheit, Pressure}.
+
+%% Extract characteristics of a list of measurements
+
+min_temp(List) ->
+    TempList = lists:map(fun(X) -> {_,Y,_} = X, Y end ,List),
+    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> X; true -> Smallest end end).
+
+max_temp(List) ->
+    TempList = lists:map(fun(X) -> {_,Y,_} = X, Y end ,List),
+    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> Smallest; true -> X end end).
+
+min_pressure(List) ->
+    TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
+    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> X; true -> Smallest end end).
+
+max_pressure(List) ->
+    TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
+    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> Smallest; true -> X end end).
+
+extreme(List, Fun) ->
+    lists:foldl(Fun, lists:last(List), List). 
+
+avg_temp(List) ->
+    TempList = lists:map(fun(X) -> {_,Y,_} = X, Y end ,List),
+    lists:foldl(fun( X, Sum) -> X + Sum end, 0, TempList) / length(TempList).
+
+avg_pressure(List) ->
+    TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
+    lists:foldl(fun( X, Sum) -> X + Sum end, 0, TempList) / length(TempList).
