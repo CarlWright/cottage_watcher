@@ -18,7 +18,8 @@
 	 min_pressure/1,
 	 max_pressure/1,
 	 avg_temp/1,
-	 avg_pressure/1]).
+	 avg_pressure/1,
+	 email/3]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -180,3 +181,15 @@ avg_temp(List) ->
 avg_pressure(List) ->
     TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
     lists:foldl(fun( X, Sum) -> X + Sum end, 0, TempList) / length(TempList).
+
+%% deliver results via email
+
+email(To,Title, Content) ->
+    ok = file:write_file("body.txt",Content),
+    case os:cmd(lists:concat(["mail -s \"", Title,"\" ", To," < body.txt\n"]) ) of
+			 [] ->
+			     ok;
+			 error ->
+			     error
+		     end.
+
