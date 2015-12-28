@@ -1,10 +1,10 @@
 %%%-------------------------------------------------------------------
-%%% @author root <root@load>
-%%% @copyright (C) 2015, root
+%%% @author Carl A. Wright <wright@servicelevel.net>
+%%% @copyright (C) 2015, Carl A. Wright
 %%% @doc
 %%%
 %%% @end
-%%% Created :  5 Dec 2015 by root <root@load>
+%%% Created :  5 Dec 2015 by Carl A. Wright <wright@servicelevel.net>
 %%%-------------------------------------------------------------------
 -module(cottage_watcher).
 
@@ -12,28 +12,75 @@
 
 %% API
 -export([start_link/0,
+	 cw_collect/3,
+	 send_report/2,
+	 write_CSV/2,
 	 minute_measures/1,
 	 min_temp/1,
 	 max_temp/1,
+	 permanent_monitor/1,
 	 min_pressure/1,
 	 max_pressure/1,
 	 avg_temp/1,
-	 avg_pressure/1,
-	 email/3]).
+	 avg_pressure/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE).
+-define(TMPFILE, "body.txt").
+-define(MEASUREMENT_INTERVAL, 60 * 1000).
 
--record(state, {sensor_pid}).
+-record(state, {sensor_pid, temps, pressures}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+
+%% collect for a period of time
+
+cw_collect(PID, Number, minutes) ->
+    gen_server:call(PID, {minutes, Number}).
+
+
+send_report( PID, Address_string ) ->
+    gen_server:cast(PID, {report_temps, Address_string}).
+
+
+%% get a list of measurements
+
 minute_measures(PID) ->
     gen_server:call(PID,{a_minute_of_measurements}, 90 * 1000).
+
+%% Extract characteristics of a list of measurements
+
+min_temp(List) ->
+    TempList = lists:map(fun(X) -> {_,Y,_} = X, Y end ,List),
+    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> X; true -> Smallest end end).
+
+max_temp(List) ->
+    TempList = lists:map(fun(X) -> {_,Y,_} = X, Y end ,List),
+    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> Smallest; true -> X end end).
+
+min_pressure(List) ->
+    TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
+    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> X; true -> Smallest end end).
+
+max_pressure(List) ->
+    TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
+    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> Smallest; true -> X end end).
+
+avg_temp(List) ->
+    TempList = lists:map(fun(X) -> {_,Y,_} = X, Y end ,List),
+    lists:foldl(fun( X, Sum) -> X + Sum end, 0, TempList) / length(TempList).
+
+avg_pressure(List) ->
+    TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
+    lists:foldl(fun( X, Sum) -> X + Sum end, 0, TempList) / length(TempList).
+
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -61,7 +108,8 @@ start_link() ->
 %%--------------------------------------------------------------------
 init([]) ->
     PID = erlang:whereis(bmp085),
-    {ok, #state{sensor_pid = PID}}.
+    erlang:send_after(?MEASUREMENT_INTERVAL, self(),take_measurement),
+    {ok, #state{sensor_pid = PID, temps = [], pressures = []}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -80,8 +128,9 @@ init([]) ->
 handle_call({a_minute_of_measurements}, _From, State) ->
     Reply =  sixty_seconds_measure(State#state.sensor_pid),
     {reply, Reply, State};
-handle_call(_Request, _From, State) ->
-    Reply = ok,
+handle_call({minutes, _Number}, _From, State) ->
+%    Reply = lists:reverse(lists:sublist(State#state.temps, Number)),
+    Reply = State#state.temps,
     {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
@@ -94,7 +143,10 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast(_Msg, State) ->
+handle_cast({report_temps, Address}, State) ->
+    Measurements = State#state.temps,
+    write_CSV( Measurements,"temps.txt"),
+    email( Address, "one day of data","data is in the attachment","temps.txt"),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -107,8 +159,16 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info(_Info, State) ->
-    {noreply, State}.
+handle_info(take_measurement, State) ->
+    Temps_list = State#state.temps,
+    {ok,Datetime, Temp, Pressure} = one_measurement( State#state.sensor_pid, 10),
+    NewTemps_list = update_list(Temps_list,{Datetime, round(Temp ,2)}, 1440),
+    Pressures_list = State#state.pressures,
+    NewPressures_list = update_list(Pressures_list,{Datetime, round(Pressure ,2)}, 1440),
+    NewState = State#state{temps = NewTemps_list, pressures = NewPressures_list},
+    erlang:send_after(?MEASUREMENT_INTERVAL, self(),take_measurement),
+io:format("~p~n",[NewState]),
+    {noreply, NewState}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -138,6 +198,17 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+
+permanent_monitor(Address) ->
+    Measurements = cw_collect(self(), 1 * 60, minutes),
+    write_CSV( Measurements,"temps.txt"),
+    email( Address, "one day of data","data is in the attachement","temps.txt"),
+    ok.    
+
+
+
+
 sixty_seconds_measure(Sensor) ->
     sixty_seconds_measure(Sensor,[],60).
 
@@ -153,43 +224,65 @@ one_measurement(Sensor, Pause) ->
     {ok,Pressure} = bmp085:read_pressure(Sensor, standard),
     {ok, erlang:localtime(), Fahrenheit, Pressure}.
 
-%% Extract characteristics of a list of measurements
 
-min_temp(List) ->
-    TempList = lists:map(fun(X) -> {_,Y,_} = X, Y end ,List),
-    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> X; true -> Smallest end end).
-
-max_temp(List) ->
-    TempList = lists:map(fun(X) -> {_,Y,_} = X, Y end ,List),
-    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> Smallest; true -> X end end).
-
-min_pressure(List) ->
-    TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
-    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> X; true -> Smallest end end).
-
-max_pressure(List) ->
-    TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
-    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> Smallest; true -> X end end).
+%% a function used to drive smallest and largest value extractions
 
 extreme(List, Fun) ->
     lists:foldl(Fun, lists:last(List), List). 
 
-avg_temp(List) ->
-    TempList = lists:map(fun(X) -> {_,Y,_} = X, Y end ,List),
-    lists:foldl(fun( X, Sum) -> X + Sum end, 0, TempList) / length(TempList).
+round(Number, Precision) ->
+    P = math:pow(10, Precision),
+    round(Number * P) / P.
 
-avg_pressure(List) ->
-    TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
-    lists:foldl(fun( X, Sum) -> X + Sum end, 0, TempList) / length(TempList).
+%% write a list of measurements to a CSV file
 
+
+write_CSV( List, File_path ) ->
+    case file:open(File_path,[write]) of
+	{ok,F} ->
+	    write_CSV(item, F, List);
+	{error, Reason} -> {error, Reason}
+	end.
+
+write_CSV(item, F, []) ->
+    file:close(F);
+write_CSV(item, F, [Item | List]) ->
+    {{{Year, Month, Day},{Hour, Minute, Second}}, Temp} = Item,
+
+          %% an example of the output for the line below is 
+          %% 2015-12-27  18:45:00,72.26
+          %% It is the date , time and then temperature 
+
+    io:format(F, "~b-~2..0b-~2..0b  ~2..0b:~2..0b:~2..0b,~p~n",[Year, Month, Day,Hour, Minute,Second, Temp]),
+    write_CSV(item, F, List).
+
+
+%% adds a new value ot the beginning of a reversed list and trims to maximum length
+%%
+update_list(List,NewVal, Length) ->
+    lists:sublist( [NewVal | List], Length).
+    
 %% deliver results via email
 
-email(To,Title, Content) ->
-    ok = file:write_file("body.txt",Content),
-    case os:cmd(lists:concat(["mail -s \"", Title,"\" ", To," < body.txt\n"]) ) of
-			 [] ->
-			     ok;
-			 error ->
-			     error
-		     end.
+%email(To, Title, Content) ->
+%
+%    email(To, Title, Content, []).
 
+email(To, Title, Content, []) ->
+    ok = file:write_file(?TMPFILE, Content),
+    case 
+	os:cmd(lists:concat(["mutt -s \"", Title,"\"  --  ", To," < ",?TMPFILE, "\n"])) of
+	[] ->
+	    ok;
+	error ->
+	    error
+    end;
+email(To, Title, Content, Attachment_path) ->
+    ok = file:write_file(?TMPFILE, Content),
+    case 
+	os:cmd(lists:concat(["mutt -s \"", Title,"\" -a ",Attachment_path, " --  ", To," < ", ?TMPFILE, "\n"])) of
+	[] ->
+	    ok;
+	error ->
+	    error
+    end.
