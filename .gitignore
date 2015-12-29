@@ -1,2 +1,5 @@
+erlang.mk
+temps.txt
+body.txt
 *.beam
 *.*~

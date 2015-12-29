@@ -153,11 +153,11 @@ handle_call({a_minute_of_measurements}, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast({report_temps, Address}, State) ->
-    Measurements = State#state.temps,
+    Measurements = lists:reverse(State#state.temps),
     report_dispatch(Measurements, Address, ?EMAIL_TEMPS_SUBJECT),
     {noreply, State};
 handle_cast({report_pressures, Address}, State) ->
-    Measurements = State#state.pressures,
+    Measurements = lists:reverse(State#state.pressures),
     report_dispatch(Measurements, Address, ?EMAIL_PRESSURES_SUBJECT),
     {noreply, State}.
 
