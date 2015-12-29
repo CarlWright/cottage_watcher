@@ -6,6 +6,14 @@
 %%% @end
 %%% Created :  5 Dec 2015 by Carl A. Wright <wright@servicelevel.net>
 %%%-------------------------------------------------------------------
+%%%-------------------------------------------------------------------
+%%% @author Carl A. Wright <wright@servicelevel.net>
+%%% @copyright (C) 2015, Carl A. Wright
+%%% @doc
+%%%
+%%% @end
+%%% Created :  5 Dec 2015 by Carl A. Wright <wright@servicelevel.net>
+%%%-------------------------------------------------------------------
 -module(cottage_watcher).
 
 -behaviour(gen_server).
@@ -13,12 +21,12 @@
 %% API
 -export([start_link/0,
 	 cw_collect/3,
-	 send_report/2,
+	 send_temp_report/2,
+	 send_pressure_report/2,
 	 write_CSV/2,
 	 minute_measures/1,
 	 min_temp/1,
 	 max_temp/1,
-	 permanent_monitor/1,
 	 min_pressure/1,
 	 max_pressure/1,
 	 avg_temp/1,
@@ -30,6 +38,10 @@
 
 -define(SERVER, ?MODULE).
 -define(TMPFILE, "body.txt").
+-define(ATTACHMENT_FILE, "temps.txt").
+-define(EMAIL_TEMPS_SUBJECT, "A day of temperature data").
+-define(EMAIL_PRESSURES_SUBJECT, "A day of pressure data").
+-define(EMAIL_CONTENT, "The data is in the attachment").
 -define(MEASUREMENT_INTERVAL, 60 * 1000).
 
 -record(state, {sensor_pid, temps, pressures}).
@@ -45,8 +57,11 @@ cw_collect(PID, Number, minutes) ->
     gen_server:call(PID, {minutes, Number}).
 
 
-send_report( PID, Address_string ) ->
+send_temp_report( PID, Address_string ) ->
     gen_server:cast(PID, {report_temps, Address_string}).
+
+send_pressure_report( PID, Address_string ) ->
+    gen_server:cast(PID, {report_pressures, Address_string}).
 
 
 %% get a list of measurements
@@ -129,7 +144,7 @@ handle_call({a_minute_of_measurements}, _From, State) ->
     Reply =  sixty_seconds_measure(State#state.sensor_pid),
     {reply, Reply, State};
 handle_call({minutes, _Number}, _From, State) ->
-%    Reply = lists:reverse(lists:sublist(State#state.temps, Number)),
+						%    Reply = lists:reverse(lists:sublist(State#state.temps, Number)),
     Reply = State#state.temps,
     {reply, Reply, State}.
 
@@ -145,9 +160,16 @@ handle_call({minutes, _Number}, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({report_temps, Address}, State) ->
     Measurements = State#state.temps,
-    write_CSV( Measurements,"temps.txt"),
-    email( Address, "one day of data","data is in the attachment","temps.txt"),
+    write_CSV( Measurements, ?ATTACHMENT_FILE),
+    email( Address, ?EMAIL_TEMPS_SUBJECT, ?EMAIL_CONTENT, ?ATTACHMENT_FILE),
+    {noreply, State};
+handle_cast({report_pressures, Address}, State) ->
+    Measurements = State#state.pressures,
+    write_CSV( Measurements, ?ATTACHMENT_FILE),
+    email( Address, ?EMAIL_PRESSURES_SUBJECT, ?EMAIL_CONTENT, ?ATTACHMENT_FILE),
     {noreply, State}.
+
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -160,14 +182,17 @@ handle_cast({report_temps, Address}, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info(take_measurement, State) ->
-    Temps_list = State#state.temps,
+
     {ok,Datetime, Temp, Pressure} = one_measurement( State#state.sensor_pid, 10),
+
+    Temps_list = State#state.temps,
     NewTemps_list = update_list(Temps_list,{Datetime, round(Temp ,2)}, 1440),
+
     Pressures_list = State#state.pressures,
     NewPressures_list = update_list(Pressures_list,{Datetime, round(Pressure ,2)}, 1440),
     NewState = State#state{temps = NewTemps_list, pressures = NewPressures_list},
+
     erlang:send_after(?MEASUREMENT_INTERVAL, self(),take_measurement),
-io:format("~p~n",[NewState]),
     {noreply, NewState}.
 
 %%--------------------------------------------------------------------
@@ -198,13 +223,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-
-permanent_monitor(Address) ->
-    Measurements = cw_collect(self(), 1 * 60, minutes),
-    write_CSV( Measurements,"temps.txt"),
-    email( Address, "one day of data","data is in the attachement","temps.txt"),
-    ok.    
 
 
 
@@ -240,18 +258,19 @@ round(Number, Precision) ->
 write_CSV( List, File_path ) ->
     case file:open(File_path,[write]) of
 	{ok,F} ->
+	    io:format(F, '"date","temp"~n',[]),
 	    write_CSV(item, F, List);
 	{error, Reason} -> {error, Reason}
-	end.
+    end.
 
 write_CSV(item, F, []) ->
     file:close(F);
 write_CSV(item, F, [Item | List]) ->
     {{{Year, Month, Day},{Hour, Minute, Second}}, Temp} = Item,
 
-          %% an example of the output for the line below is 
-          %% 2015-12-27  18:45:00,72.26
-          %% It is the date , time and then temperature 
+    %% an example of the output for the line below is 
+    %% 2015-12-27  18:45:00,72.26
+    %% It is the date , time and then temperature 
 
     io:format(F, "~b-~2..0b-~2..0b  ~2..0b:~2..0b:~2..0b,~p~n",[Year, Month, Day,Hour, Minute,Second, Temp]),
     write_CSV(item, F, List).
@@ -261,12 +280,12 @@ write_CSV(item, F, [Item | List]) ->
 %%
 update_list(List,NewVal, Length) ->
     lists:sublist( [NewVal | List], Length).
-    
+
 %% deliver results via email
 
-%email(To, Title, Content) ->
-%
-%    email(To, Title, Content, []).
+%%email(To, Title, Content) ->
+%%
+						%    email(To, Title, Content, []).
 
 email(To, Title, Content, []) ->
     ok = file:write_file(?TMPFILE, Content),
