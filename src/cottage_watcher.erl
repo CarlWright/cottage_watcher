@@ -20,7 +20,6 @@
 
 %% API
 -export([start_link/0,
-	 cw_collect/3,
 	 send_temp_report/2,
 	 send_pressure_report/2,
 	 write_CSV/2,
@@ -44,6 +43,8 @@
 -define(EMAIL_CONTENT, "The data is in the attachment").
 -define(MEASUREMENT_INTERVAL, 60 * 1000).
 
+-define(DEFAULT_ADDRESS, "wright@servicelevel.net").
+
 -record(state, {sensor_pid, temps, pressures}).
 
 %%%===================================================================
@@ -53,15 +54,12 @@
 
 %% collect for a period of time
 
-cw_collect(PID, Number, minutes) ->
-    gen_server:call(PID, {minutes, Number}).
-
 
 send_temp_report( PID, Address_string ) ->
     gen_server:cast(PID, {report_temps, Address_string}).
 
 send_pressure_report( PID, Address_string ) ->
-    gen_server:cast(PID, {report_pressures, Address_string}).
+     gen_server:cast(PID, {report_pressures, Address_string}).
 
 
 %% get a list of measurements
@@ -142,10 +140,6 @@ init([]) ->
 %%--------------------------------------------------------------------
 handle_call({a_minute_of_measurements}, _From, State) ->
     Reply =  sixty_seconds_measure(State#state.sensor_pid),
-    {reply, Reply, State};
-handle_call({minutes, _Number}, _From, State) ->
-						%    Reply = lists:reverse(lists:sublist(State#state.temps, Number)),
-    Reply = State#state.temps,
     {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
@@ -160,13 +154,11 @@ handle_call({minutes, _Number}, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({report_temps, Address}, State) ->
     Measurements = State#state.temps,
-    write_CSV( Measurements, ?ATTACHMENT_FILE),
-    email( Address, ?EMAIL_TEMPS_SUBJECT, ?EMAIL_CONTENT, ?ATTACHMENT_FILE),
+    report_dispatch(Measurements, Address, ?EMAIL_TEMPS_SUBJECT),
     {noreply, State};
 handle_cast({report_pressures, Address}, State) ->
     Measurements = State#state.pressures,
-    write_CSV( Measurements, ?ATTACHMENT_FILE),
-    email( Address, ?EMAIL_PRESSURES_SUBJECT, ?EMAIL_CONTENT, ?ATTACHMENT_FILE),
+    report_dispatch(Measurements, Address, ?EMAIL_PRESSURES_SUBJECT),
     {noreply, State}.
 
 
@@ -190,9 +182,15 @@ handle_info(take_measurement, State) ->
 
     Pressures_list = State#state.pressures,
     NewPressures_list = update_list(Pressures_list,{Datetime, round(Pressure ,2)}, 1440),
+
     NewState = State#state{temps = NewTemps_list, pressures = NewPressures_list},
 
     erlang:send_after(?MEASUREMENT_INTERVAL, self(),take_measurement),
+
+    %% Check if we should produce a daily report because a new day started
+
+    send_daily_reports(?DEFAULT_ADDRESS, State, Datetime, State#state.temps),
+
     {noreply, NewState}.
 
 %%--------------------------------------------------------------------
@@ -305,3 +303,24 @@ email(To, Title, Content, Attachment_path) ->
 	error ->
 	    error
     end.
+
+report_dispatch(Measurements, Address, Subject) ->
+    write_CSV( Measurements, ?ATTACHMENT_FILE),
+    email( Address, Subject, ?EMAIL_CONTENT, ?ATTACHMENT_FILE).
+
+send_daily_reports( Address , State, Datetime, Temp_list) when Temp_list /= [] ->
+    {{_,_,Todays_day},_} = Datetime,
+    {{{_,_,Last_day},_},_} =  lists:nth(1, Temp_list),
+    case Todays_day - Last_day of
+	0 ->
+	    ok;
+	_Difference_found ->
+
+	    Measurements = State#state.temps,
+	    report_dispatch(Measurements, Address, ?EMAIL_TEMPS_SUBJECT),
+	    Pressures = State#state.pressures,
+	    report_dispatch(Pressures, Address, ?EMAIL_PRESSURES_SUBJECT)
+    end;
+send_daily_reports( _Address , _State, _Datetime, _Temp_list) ->
+			  ok.
+
