@@ -266,7 +266,7 @@ round(Number, Precision) ->
 write_CSV( List, File_path ) ->
     case file:open(File_path,[write]) of
 	{ok,F} ->
-	    io:format(F, '"date","temp"~n',[]),
+	    io:format(F, '"date","amount"~n',[]),
 	    write_CSV(item, F, List);
 	{error, Reason} -> {error, Reason}
     end.
@@ -280,7 +280,7 @@ write_CSV(item, F, [Item | List]) ->
     %% 2015-12-27  18:45:00,72.26
     %% It is the date , time and then temperature 
 
-    io:format(F, "~b-~2..0b-~2..0b  ~2..0b:~2..0b:~2..0b,~p~n",[Year, Month, Day,Hour, Minute,Second, Temp]),
+    io:format(F, "~b-~2..0b-~2..0b  ~2..0b:~2..0b:~2..0b,~8.2f~n",[Year, Month, Day,Hour, Minute,Second, Temp]),
     write_CSV(item, F, List).
 
 
