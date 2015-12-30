@@ -37,7 +37,9 @@
 
 -define(SERVER, ?MODULE).
 -define(TMPFILE, "body.txt").
--define(ATTACHMENT_FILE, "temps.txt").
+-define(TEMPS_ATTACHMENT_FILE, "temps.txt").
+-define(PRESSURES_ATTACHMENT_FILE, "pressures.txt").
+
 -define(EMAIL_TEMPS_SUBJECT, "A day of temperature data").
 -define(EMAIL_PRESSURES_SUBJECT, "A day of pressure data").
 -define(EMAIL_CONTENT, "The data is in the attachment").
@@ -59,7 +61,7 @@ send_temp_report( PID, Address_string ) ->
     gen_server:cast(PID, {report_temps, Address_string}).
 
 send_pressure_report( PID, Address_string ) ->
-     gen_server:cast(PID, {report_pressures, Address_string}).
+    gen_server:cast(PID, {report_pressures, Address_string}).
 
 
 %% get a list of measurements
@@ -154,11 +156,19 @@ handle_call({a_minute_of_measurements}, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({report_temps, Address}, State) ->
     Measurements = lists:reverse(State#state.temps),
-    report_dispatch(Measurements, Address, ?EMAIL_TEMPS_SUBJECT),
+    report_dispatch(temperature,
+		    Measurements, 
+		    Address, 
+		    ?EMAIL_TEMPS_SUBJECT, 
+		    ?TEMPS_ATTACHMENT_FILE),
     {noreply, State};
 handle_cast({report_pressures, Address}, State) ->
     Measurements = lists:reverse(State#state.pressures),
-    report_dispatch(Measurements, Address, ?EMAIL_PRESSURES_SUBJECT),
+    report_dispatch(pressure, 
+		    Measurements, 
+		    Address, 
+		    ?EMAIL_PRESSURES_SUBJECT, 
+		    ?PRESSURES_ATTACHMENT_FILE),
     {noreply, State}.
 
 
@@ -283,30 +293,57 @@ update_list(List,NewVal, Length) ->
 
 %%email(To, Title, Content) ->
 %%
-						%    email(To, Title, Content, []).
-
-email(To, Title, Content, []) ->
+email(To, Title, Content, Plot_Attachment_path, Data_Attachment_path) ->
     ok = file:write_file(?TMPFILE, Content),
     case 
-	os:cmd(lists:concat(["mutt -s \"", Title,"\"  --  ", To," < ",?TMPFILE, "\n"])) of
-	[] ->
-	    ok;
-	error ->
-	    error
-    end;
-email(To, Title, Content, Attachment_path) ->
-    ok = file:write_file(?TMPFILE, Content),
-    case 
-	os:cmd(lists:concat(["mutt -s \"", Title,"\" -a ",Attachment_path, " --  ", To," < ", ?TMPFILE, "\n"])) of
+	os:cmd(lists:concat(["mutt -s \"", Title,"\" -a ",Plot_Attachment_path, " -a ",Data_Attachment_path, " --  ", To," < ", ?TMPFILE, "\n"])) of
 	[] ->
 	    ok;
 	error ->
 	    error
     end.
 
-report_dispatch(Measurements, Address, Subject) ->
-    write_CSV( Measurements, ?ATTACHMENT_FILE),
-    email( Address, Subject, ?EMAIL_CONTENT, ?ATTACHMENT_FILE).
+report_dispatch(temperature, Measurements, Address, Subject, Attachment_location) ->
+    write_CSV( Measurements, 
+	       Attachment_location),
+    _Stuff = os:cmd(lists:concat(["./graphscript_temp.R ", 
+				  Attachment_location])),
+    %% Get the files in the directory
+    {ok, Files} = file:list_dir("./"),
+    %% filter out any files that aren't a line plot
+    Graphs = lists:filter(fun (X) -> string:left(X, 16) == "temperature-plot"  end,
+			  Files),
+    Plot_Attachment = case length(Graphs) of
+			  1 -> Graphs;
+			  _Other_number -> []
+		      end,
+    email( Address, 
+	   Subject, 
+	   ?EMAIL_CONTENT, 
+	   Plot_Attachment, 
+	   Attachment_location),
+    file:delete(Plot_Attachment);
+
+report_dispatch(pressure, Measurements, Address, Subject, Attachment_location) ->
+    write_CSV( Measurements, 
+	       Attachment_location),
+    _Stuff = os:cmd(lists:concat(["./graphscript_pressure.R ", 
+				  Attachment_location])),
+    %% Get the files in the directory
+    {ok, Files} = file:list_dir("./"),
+    %% filter out any files that aren't a line plot
+    Graphs = lists:filter(fun (X) -> string:left(X, 13) == "pressure-plot"  end,
+			  Files),
+    Plot_Attachment = case length(Graphs) of
+			  1 -> Graphs;
+			  _Other_number -> []
+		      end,
+    email( Address, 
+	   Subject, 
+	   ?EMAIL_CONTENT, 
+	   Plot_Attachment,
+	   Attachment_location),
+    file:delete(Plot_Attachment).
 
 send_daily_reports( Address , State, Datetime, Temp_list) when Temp_list /= [] ->
     {{_,_,Todays_day},_} = Datetime,
@@ -317,10 +354,19 @@ send_daily_reports( Address , State, Datetime, Temp_list) when Temp_list /= [] -
 	_Difference_found ->
 
 	    Measurements = State#state.temps,
-	    report_dispatch(Measurements, Address, ?EMAIL_TEMPS_SUBJECT),
+	    report_dispatch(temperature, 
+			    Measurements, 
+			    Address, 
+			    ?EMAIL_TEMPS_SUBJECT, 
+			    ?TEMPS_ATTACHMENT_FILE),
+
 	    Pressures = State#state.pressures,
-	    report_dispatch(Pressures, Address, ?EMAIL_PRESSURES_SUBJECT)
+	    report_dispatch(pressure, 
+			    Pressures, 
+			    Address, 
+			    ?EMAIL_PRESSURES_SUBJECT, 
+			    ?PRESSURES_ATTACHMENT_FILE)
     end;
 send_daily_reports( _Address , _State, _Datetime, _Temp_list) ->
-			  ok.
+    ok.
 
