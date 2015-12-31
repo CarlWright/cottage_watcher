@@ -1,3 +1,4 @@
+
 %%%-------------------------------------------------------------------
 %%% @author Carl A. Wright <wright@servicelevel.net>
 %%% @copyright (C) 2015, Carl A. Wright
@@ -40,8 +41,6 @@
 -define(TEMPS_ATTACHMENT_FILE, "temps.txt").
 -define(PRESSURES_ATTACHMENT_FILE, "pressures.txt").
 
--define(EMAIL_TEMPS_SUBJECT, "A day of temperature data").
--define(EMAIL_PRESSURES_SUBJECT, "A day of pressure data").
 -define(EMAIL_CONTENT, "The data is in the attachment").
 -define(MEASUREMENT_INTERVAL, 60 * 1000).
 
@@ -156,18 +155,22 @@ handle_call({a_minute_of_measurements}, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({report_temps, Address}, State) ->
     Measurements = lists:reverse(State#state.temps),
+    {Datetime,_} = lists:nth(1, Measurements),
     report_dispatch(temperature,
 		    Measurements, 
 		    Address, 
-		    ?EMAIL_TEMPS_SUBJECT, 
+		    format_subject( Datetime, 
+				    "temperature"),
 		    ?TEMPS_ATTACHMENT_FILE),
     {noreply, State};
 handle_cast({report_pressures, Address}, State) ->
     Measurements = lists:reverse(State#state.pressures),
+    {Datetime,_} = lists:nth(1, Measurements),
     report_dispatch(pressure, 
 		    Measurements, 
 		    Address, 
-		    ?EMAIL_PRESSURES_SUBJECT, 
+		    format_subject( Datetime, 
+				    "pressure"),
 		    ?PRESSURES_ATTACHMENT_FILE),
     {noreply, State}.
 
@@ -357,16 +360,22 @@ send_daily_reports( Address , State, Datetime, Temp_list) when Temp_list /= [] -
 	    report_dispatch(temperature, 
 			    Measurements, 
 			    Address, 
-			    ?EMAIL_TEMPS_SUBJECT, 
+			    format_subject( Datetime, 
+					    "temperature"),
 			    ?TEMPS_ATTACHMENT_FILE),
 
 	    Pressures = State#state.pressures,
 	    report_dispatch(pressure, 
 			    Pressures, 
 			    Address, 
-			    ?EMAIL_PRESSURES_SUBJECT, 
+			    format_subject( Datetime, 
+					    "pressure"),
 			    ?PRESSURES_ATTACHMENT_FILE)
     end;
 send_daily_reports( _Address , _State, _Datetime, _Temp_list) ->
     ok.
 
+format_subject(Datetime, Type) ->
+    {{Year, Month, Day},_} = Datetime,
+    Formatted_date = io_lib:format("~b-~2..0b-~2..0b",[Year, Month, Day]),
+    lists:concat([ Type, " data for ",Formatted_date]).
