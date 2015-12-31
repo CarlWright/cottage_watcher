@@ -55,12 +55,12 @@ init([]) ->
 		 intensity => 1,
 		 period => 5},
 
-    AChild = #{id => 'AName',
-	       start => {'AModule', start_link, []},
+    AChild = #{id => 'cottage_alarm',
+	       start => {cottage_alarm, start_link, []},
 	       restart => permanent,
 	       shutdown => 5000,
 	       type => worker,
-	       modules => ['AModule']},
+	       modules => [cottage_alarm]},
 
     {ok, {SupFlags, [AChild]}}.
 
