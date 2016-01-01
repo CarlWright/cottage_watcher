@@ -2,7 +2,7 @@
  [{description, "Application to monitor the environment of a cottage and 
                 report as directed"},
   {vsn, "1.0"},
-  {modules, ['cottage_alarm_app','cottage_watcher','cottage_watcher_app','cottage_watcher_sup']},
+  {modules, ['cottage_watcher','cottage_watcher_app','cottage_watcher_sup']},
   {registered,[cottage_watcher_sup]},
   {applications, [kernel,
 		  stdlib,

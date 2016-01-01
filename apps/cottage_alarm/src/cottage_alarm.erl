@@ -12,7 +12,8 @@
 
 %% API
 -export([start_link/0]).
--export([process_measurement/2]).
+-export([process_measurement/2,
+	 reset_parameters/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -20,8 +21,18 @@
 
 -define(SERVER, ?MODULE).
 -define(SPEC_FILE,"alarms_spec.txt").
+-define(MINUTE, 60).
+-define(REPORT_DESTINATION, "wright@servicelevel.net").
+-define(TMPFILE, "temp.txt").
 
--record(state, {min, max, hot_temps, cold_temps}).
+
+-record(state, {min, 
+		max,
+		forget_period, 
+		first_escalation, 
+		second_escalation, 
+		hot_temps, 
+		cold_temps}).
 
 %%%===================================================================
 %%% API
@@ -29,6 +40,9 @@
 
 process_measurement( ServerRef, Temperature) ->
     gen_server:cast(ServerRef, {evaluate, Temperature}).
+
+reset_parameters( ServerRef, Spec_file_string) ->
+    gen_server:cast(ServerRef, {reset, Spec_file_string}).
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -55,11 +69,8 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok,Specs} = file:consult(?SPEC_FILE),
-    Minimum = proplists:get_value(min, Specs),
-    Maximum = proplists:get_value(max, Specs),
-    {ok, #state{min = Minimum, 
-		max = Maximum, 
+    NewState = set_parameters( ?SPEC_FILE, #state{}),
+    {ok,NewState#state{
 		cold_temps = [],
 		hot_temps = []}
     }.
@@ -92,6 +103,9 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({reset, Spec_file_string}, State) ->
+    NewState = set_parameters(Spec_file_string, State),
+    {noreply, NewState};
 handle_cast({evaluate, Temperature}, State) ->
     NewState = evaluate_temp(Temperature, State),
     {noreply, NewState}.
@@ -139,17 +153,130 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 evaluate_temp(Temp, State) ->
     {_, Measurement} = Temp,
-    if Measurement < State#state.min -> too_low(Temp, State);
-       Measurement > State#state.max -> too_high(Temp, State)
+    if Measurement < State#state.min -> too_low(Temp,
+						State);
+       Measurement > State#state.max -> too_high(Temp,					       
+						 State)
     end.
 
 
-too_low(Temp, State) ->
-    io:format("Too low = ~p  State = ~p~n",[Temp, State]),
+too_low(Temp,  State) ->
+    New_temps = too_something( Temp, "COLD", 
+			       State#state.cold_temps, 
+			       State),
+    State#state{cold_temps = New_temps }.
 
-    State#state{cold_temps = [Temp | State#state.cold_temps]}.
 
-too_high(Temp, State) ->
-    io:format("Too high = ~p  State = ~p~n",[Temp, State]),
+too_high(Temp,  State) ->
+    New_temps = too_something( Temp, "HOT", 
+			       State#state.hot_temps, 
+			       State),
+    State#state{hot_temps = New_temps }.
 
-    State#state{hot_temps = [Temp | State#state.hot_temps]}.
+too_something(Temp, Type, Temp_list, State) ->
+    
+%%    io:format("Too ~s = ~p  State = ~p~n",[Type, Temp, State]),
+
+    NewTemps = [Temp | forget_old_data(Temp_list, State) ],
+    Escalation = State#state.first_escalation,
+    Serious =  State#state.second_escalation,
+    RecentTemps = which_measurements_during_last( Serious + 1, NewTemps ),
+    case Count = length(RecentTemps) of
+	Count when Count == 1 -> call_for_help( Temp, 
+						Type, 
+						?REPORT_DESTINATION, 
+						State#state.min);
+	Count when Count == 0 -> ok;
+	Count when Count > Serious -> call_for_help( Temp, 
+						lists:concat(["SERIOUS, URGENT ",Type]), 
+						?REPORT_DESTINATION, 
+						     State#state.min);
+	Count when Count > Escalation -> call_for_help( Temp, 
+						lists:concat(["URGENT ",Type]), 
+						?REPORT_DESTINATION, 
+						State#state.min);
+	_Count -> ok
+
+    end,
+NewTemps.
+
+
+
+forget_old_data( List, 
+		 State) ->
+    forget_old_data( List, 
+		     State, 
+		     []).
+
+forget_old_data([], 
+		_State, 
+		NewList) ->
+    lists:reverse(NewList);
+forget_old_data([Item | List], 
+		State, 
+		NewList) ->
+    case too_old(Item, State) of
+	true ->
+	    forget_old_data( List, State, NewList);
+	false ->
+	    forget_old_data( List, State, [Item | NewList])
+    end.
+
+
+too_old( Item, State) ->
+    Forget_duration = State#state.forget_period * ?MINUTE,
+    Now = calendar:datetime_to_gregorian_seconds(calendar:local_time()),
+    {Item_datetime, _} = Item,
+    DateTime = calendar:datetime_to_gregorian_seconds(Item_datetime),
+    case Now - DateTime - Forget_duration of
+	Difference when Difference > 0 ->
+	    true;
+	_Difference -> false
+    end.
+
+
+
+set_parameters( Source_file, State) ->
+    {ok,Specs} = file:consult( Source_file),
+    Minimum = proplists:get_value(min, Specs),
+    Maximum = proplists:get_value(max, Specs),
+    Forget_period = proplists:get_value(minutes_to_forget, Specs),
+    First_escalation = proplists:get_value(minutes_to_watch_and_escalate, Specs),
+    Second_escalation = proplists:get_value(minutes_to_watch_and_escalate_further, Specs),
+    State#state{min = Minimum, 
+		max = Maximum, 
+		forget_period = Forget_period,
+		first_escalation = First_escalation,
+		second_escalation = Second_escalation}.
+
+
+which_measurements_during_last( Minutes, List) ->
+    Now = calendar:datetime_to_gregorian_seconds(calendar:local_time()),
+    Breakpoint = Now - (Minutes * ?MINUTE),
+    lists:filter(fun(X) -> {Datetime, _} = X, 
+Value =   calendar:datetime_to_gregorian_seconds(Datetime),
+			Value  > Breakpoint  end, List).
+
+
+
+call_for_help( Temp, Type,  To_string, Limit) ->
+    %% deliver results via email
+    {Datetime, Measurement} = Temp,
+
+    Content = io_lib:format(" ~s temperature alert at ~p~n. Termperature is measured at ~p.~n The limit is ~p.~n",[Type,
+														   Datetime,
+														   Measurement,
+														   Limit]),
+    Title = io_lib:format(" ~s temperature alert on ~s",[Type, format_datetime(Datetime)]),
+    ok = file:write_file(?TMPFILE, Content),
+    case 
+	os:cmd(lists:concat(["mutt -s \"", Title,"\"  "," --  ", To_string," < ", ?TMPFILE, "\n"])) of
+	[] ->
+	    ok;
+	error ->
+	    error
+    end.
+
+format_datetime(Datetime) ->
+    {{Year, Month, Day},{Hour, Minute, Second}} = Datetime,
+    io_lib:format("~b-~2..0b-~2..0b ~b:~2..0b:~2..0b",[Year, Month, Day,Hour, Minute, Second]).

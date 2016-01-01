@@ -392,6 +392,9 @@ send_daily_reports( _Address , _State, _Datetime, _Temp_list) ->
     ok.
 
 format_subject(Datetime, Type) ->
+    lists:concat([ Type, " data for ",format_date(Datetime)]).
+
+format_date(Datetime) ->
     {{Year, Month, Day},_} = Datetime,
-    Formatted_date = io_lib:format("~b-~2..0b-~2..0b",[Year, Month, Day]),
-    lists:concat([ Type, " data for ",Formatted_date]).
+    io_lib:format("~b-~2..0b-~2..0b",[Year, Month, Day]).
+
