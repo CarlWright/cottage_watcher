@@ -12,19 +12,23 @@
 
 %% API
 -export([start_link/0]).
+-export([process_measurement/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE).
+-define(SPEC_FILE,"alarms_spec.txt").
 
--record(state, {}).
+-record(state, {min, max, hot_temps, cold_temps}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
+process_measurement( ServerRef, Temperature) ->
+    gen_server:cast(ServerRef, {evaluate, Temperature}).
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -51,7 +55,14 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok, #state{}}.
+    {ok,Specs} = file:consult(?SPEC_FILE),
+    Minimum = proplists:get_value(min, Specs),
+    Maximum = proplists:get_value(max, Specs),
+    {ok, #state{min = Minimum, 
+		max = Maximum, 
+		cold_temps = [],
+		hot_temps = []}
+    }.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -81,8 +92,9 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast(_Msg, State) ->
-    {noreply, State}.
+handle_cast({evaluate, Temperature}, State) ->
+    NewState = evaluate_temp(Temperature, State),
+    {noreply, NewState}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -125,3 +137,19 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+evaluate_temp(Temp, State) ->
+    {_, Measurement} = Temp,
+    if Measurement < State#state.min -> too_low(Temp, State);
+       Measurement > State#state.max -> too_high(Temp, State)
+    end.
+
+
+too_low(Temp, State) ->
+    io:format("Too low = ~p  State = ~p~n",[Temp, State]),
+
+    State#state{cold_temps = [Temp | State#state.cold_temps]}.
+
+too_high(Temp, State) ->
+    io:format("Too high = ~p  State = ~p~n",[Temp, State]),
+
+    State#state{hot_temps = [Temp | State#state.hot_temps]}.

@@ -46,7 +46,10 @@
 
 -define(DEFAULT_ADDRESS, "wright@servicelevel.net").
 
--record(state, {sensor_pid, temps, pressures}).
+-record(state, {sensor_pid,
+		alarm_pid, 
+		temps, 
+		pressures}).
 
 %%%===================================================================
 %%% API
@@ -123,7 +126,10 @@ start_link() ->
 init([]) ->
     PID = erlang:whereis(bmp085),
     erlang:send_after(?MEASUREMENT_INTERVAL, self(),take_measurement),
-    {ok, #state{sensor_pid = PID, temps = [], pressures = []}}.
+    {ok, #state{sensor_pid = PID, 
+		alarm_pid = 0, 
+		temps = [], 
+		pressures = []}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -196,15 +202,25 @@ handle_info(take_measurement, State) ->
     Pressures_list = State#state.pressures,
     NewPressures_list = update_list(Pressures_list,{Datetime, round(Pressure ,2)}, 1440),
 
-    NewState = State#state{temps = NewTemps_list, pressures = NewPressures_list},
 
     erlang:send_after(?MEASUREMENT_INTERVAL, self(),take_measurement),
+
+    Alarm_PID = case State#state.alarm_pid of
+		    0 -> erlang:whereis(cottage_alarm);
+		    _Other ->  State#state.alarm_pid
+		end,
+
+    cottage_alarm:process_measurement(Alarm_PID, {Datetime, Temp}),
 
     %% Check if we should produce a daily report because a new day started
 
     send_daily_reports(?DEFAULT_ADDRESS, State, Datetime, State#state.temps),
 
-    {noreply, NewState}.
+NewState = State#state{temps = NewTemps_list, 
+		       pressures = NewPressures_list,
+		       alarm_pid = Alarm_PID},
+
+{noreply, NewState}.
 
 %%--------------------------------------------------------------------
 %% @private
