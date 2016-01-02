@@ -35,16 +35,10 @@
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
+-include( "cottage_watcher.hrl").
 
 -define(SERVER, ?MODULE).
--define(TMPFILE, "body.txt").
--define(TEMPS_ATTACHMENT_FILE, "temps.txt").
--define(PRESSURES_ATTACHMENT_FILE, "pressures.txt").
-
--define(EMAIL_CONTENT, "The data is in the attachment").
 -define(MEASUREMENT_INTERVAL, 60 * 1000).
-
--define(DEFAULT_ADDRESS, "wright@servicelevel.net").
 
 -record(state, {sensor_pid,
 		alarm_pid, 

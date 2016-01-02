@@ -19,11 +19,11 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
 
+-include("cottage_alarm.hrl").
+
 -define(SERVER, ?MODULE).
--define(SPEC_FILE,"alarms_spec.txt").
 -define(MINUTE, 60).
--define(REPORT_DESTINATION, "wright@servicelevel.net").
--define(TMPFILE, "temp.txt").
+
 
 
 -record(state, {min, 
