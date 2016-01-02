@@ -2,7 +2,7 @@
  [{description, "Application to process data about the environment of a cottage and 
                 send alarms as directed"},
   {vsn, "1.0"},
-  {modules, ['cottage_alarm','cottage_alarm_sup']},
+  {modules, ['cottage_alarm','cottage_alarm_app','cottage_alarm_sup']},
   {registered,[cottage_alarm_sup]},
   {applications, [kernel,
 		  stdlib,

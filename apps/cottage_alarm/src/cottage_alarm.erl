@@ -156,7 +156,8 @@ evaluate_temp(Temp, State) ->
     if Measurement < State#state.min -> too_low(Temp,
 						State);
        Measurement > State#state.max -> too_high(Temp,					       
-						 State)
+						 State);
+       true -> ok
     end.
 
 
