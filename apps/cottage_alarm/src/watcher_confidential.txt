@@ -1,0 +1,5 @@
+
+%% The following string is the email address to which daily reports are
+%% sent. Please fill with your choice and rename file to "watcher_confirdential.hrl"
+
+-define(REPORT_DESTINATION, "your@choice.com").
