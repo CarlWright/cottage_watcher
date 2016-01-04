@@ -13,4 +13,19 @@ Before you can get air temperatures or pressures, you need to start a process to
 
 ### Environment
 
-All the development and testing of this software was done on a Raspberry PI model B using Erlang version 18. The sensor was an Adafruit Bosch BMP180 pressure sensor. 
+All the development and testing of this software was done on a Raspberry PI model B using Erlang version 18. The sensor was an Adafruit Bosch BMP180 pressure sensor.
+
+### Examples
+
+An example of the results for a daily temperature report
+
+![Example temperature chart](https://github/CarlWright/cottage-watcher/examples/temperature-plot-2016-01-03.png)
+
+
+An example of the results for a daily temperature data file
+
+![Example temperature chart](https://github/CarlWright/cottage-watcher/examples/temps.txt)
+
+An example of the results for a daily pressure report
+
+![Example temperature chart](https://github/CarlWright/cottage-watcher/examples/pressure-plot-2016-01-03.png)
