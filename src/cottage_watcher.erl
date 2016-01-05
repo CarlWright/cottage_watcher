@@ -69,27 +69,27 @@ minute_measures(PID) ->
 
 min_temp(List) ->
     TempList = lists:map(fun(X) -> {_,Y,_} = X, Y end ,List),
-    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> X; true -> Smallest end end).
+    min_measurement(TempList).
 
 max_temp(List) ->
     TempList = lists:map(fun(X) -> {_,Y,_} = X, Y end ,List),
-    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> Smallest; true -> X end end).
+    max_measurement(TempList).
 
 min_pressure(List) ->
     TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
-    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> X; true -> Smallest end end).
+    min_measurement(TempList).
 
 max_pressure(List) ->
     TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
-    extreme(TempList, fun(X,Smallest) -> if X < Smallest -> Smallest; true -> X end end).
+    max_measurement(TempList).
 
 avg_temp(List) ->
     TempList = lists:map(fun(X) -> {_,Y,_} = X, Y end ,List),
-    lists:foldl(fun( X, Sum) -> X + Sum end, 0, TempList) / length(TempList).
+    avg_measurement(TempList).
 
 avg_pressure(List) ->
     TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
-    lists:foldl(fun( X, Sum) -> X + Sum end, 0, TempList) / length(TempList).
+    avg_measurement(TempList).
 
 
 %%--------------------------------------------------------------------
@@ -330,9 +330,13 @@ report_dispatch(temperature, Measurements, Address, Subject, Attachment_location
 			  1 -> Graphs;
 			  _Other_number -> []
 		      end,
+    {_,Min} = min_measurement(Measurements),
+    {_,Max} = max_measurement(Measurements),
+    Email_content = io_lib:format("The lowest termperature was ~9.2f~nThe highest was ~9.2f~n",[Min, Max]),
+
     email( Address, 
 	   Subject, 
-	   ?EMAIL_CONTENT, 
+	   Email_content, 
 	   Plot_Attachment, 
 	   Attachment_location),
     file:delete(Plot_Attachment);
@@ -351,9 +355,13 @@ report_dispatch(pressure, Measurements, Address, Subject, Attachment_location) -
 			  1 -> Graphs;
 			  _Other_number -> []
 		      end,
+    {_,Min} = min_measurement(Measurements),
+    {_,Max} = max_measurement(Measurements),
+     Email_content = io_lib:format("The lowest pressure was ~9.2f~nThe highest was ~9.2f~n",[Min, Max]),
+
     email( Address, 
 	   Subject, 
-	   ?EMAIL_CONTENT, 
+	   Email_content,
 	   Plot_Attachment,
 	   Attachment_location),
     file:delete(Plot_Attachment).
@@ -391,4 +399,15 @@ format_subject(Datetime, Type) ->
 format_date(Datetime) ->
     {{Year, Month, Day},_} = Datetime,
     io_lib:format("~b-~2..0b-~2..0b",[Year, Month, Day]).
+
+
+
+min_measurement(List) ->
+    extreme(List, fun(X,Smallest) -> if X < Smallest -> X; true -> Smallest end end).
+
+max_measurement(List) ->
+    extreme(List, fun(X,Smallest) -> if X < Smallest -> Smallest; true -> X end end).
+
+avg_measurement(List) ->
+    lists:foldl(fun( X, Sum) -> X + Sum end, 0, List) / length(List).
 
