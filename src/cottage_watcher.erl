@@ -330,8 +330,8 @@ report_dispatch(temperature, Measurements, Address, Subject, Attachment_location
 			  1 -> Graphs;
 			  _Other_number -> []
 		      end,
-    {_,Min} = min_measurement(Measurements),
-    {_,Max} = max_measurement(Measurements),
+    Min = min_measurement(Measurements),
+    Max = max_measurement(Measurements),
     Email_content = io_lib:format("The lowest termperature was ~9.2f~nThe highest was ~9.2f~n",[Min, Max]),
 
     email( Address, 
@@ -403,11 +403,19 @@ format_date(Datetime) ->
 
 
 min_measurement(List) ->
-    extreme(List, fun(X,Smallest) -> if X < Smallest -> X; true -> Smallest end end).
+    JustData = strip_down(List),
+    extreme(JustData, fun(X,Smallest) -> if X < Smallest -> X; true -> Smallest end end).
 
 max_measurement(List) ->
-    extreme(List, fun(X,Smallest) -> if X < Smallest -> Smallest; true -> X end end).
+    JustData = strip_down(List),
+    extreme(JustData, fun(X,Smallest) -> if X < Smallest -> Smallest; true -> X end end).
 
 avg_measurement(List) ->
-    lists:foldl(fun( X, Sum) -> X + Sum end, 0, List) / length(List).
+    JustData = strip_down(List),
+    lists:foldl(fun( X, Sum) -> X + Sum end, 0, JustData) / length(JustData).
 
+
+%% takes a list of {{{date},{time}},measurement} and turns it into a list of measurements
+strip_down(List) ->
+    lists:map(fun(X) ->
+		      {_,Y} = X, Y end,List).
