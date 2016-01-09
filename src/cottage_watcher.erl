@@ -319,6 +319,7 @@ email(To, Title, Content, Plot_Attachment_path, Data_Attachment_path) ->
 report_dispatch(temperature, Measurements, Address, Subject, Attachment_location) ->
     write_CSV( Measurements, 
 	       Attachment_location),
+    clear_certain_files("temperature-plot"),
     _Stuff = os:cmd(lists:concat(["./graphscript_temp.R ", 
 				  Attachment_location])),
     %% Get the files in the directory
@@ -344,6 +345,7 @@ report_dispatch(temperature, Measurements, Address, Subject, Attachment_location
 report_dispatch(pressure, Measurements, Address, Subject, Attachment_location) ->
     write_CSV( Measurements, 
 	       Attachment_location),
+    clear_certain_files("pressure-plot"),
     _Stuff = os:cmd(lists:concat(["./graphscript_pressure.R ", 
 				  Attachment_location])),
     %% Get the files in the directory
@@ -355,12 +357,13 @@ report_dispatch(pressure, Measurements, Address, Subject, Attachment_location) -
 			  1 -> Graphs;
 			  _Other_number -> []
 		      end,
-    {_,Min} = min_measurement(Measurements),
-    {_,Max} = max_measurement(Measurements),
-     Email_content = io_lib:format("The lowest pressure was ~9.2f~nThe highest was ~9.2f~n",[Min, Max]),
+    Min = min_measurement(Measurements),
+    Max = max_measurement(Measurements),
+    Email_content = io_lib:format("The lowest pressure was ~9.2f~nThe highest was ~9.2f~n",[Min, Max]),
 
     email( Address, 
 	   Subject, 
+
 	   Email_content,
 	   Plot_Attachment,
 	   Attachment_location),
@@ -419,3 +422,19 @@ avg_measurement(List) ->
 strip_down(List) ->
     lists:map(fun(X) ->
 		      {_,Y} = X, Y end,List).
+
+%% make certain that there aren't any lingering plot files of a certain type
+
+clear_certain_files(String) ->
+    %% Get the files in the directory
+    {ok, Files} = file:list_dir("./"),
+    %% filter out any files that aren't a line plot
+    case lists:filter(fun (X) -> string:left(X, 16) == String  end,
+		      Files) of
+	[] ->
+	    ok;
+	List ->
+	    lists:map(fun(X) ->
+			      file:delete(X) end, List),
+	    ok
+    end.

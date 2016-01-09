@@ -1,5 +1,5 @@
 %% The following string is the email address to which ALARM reports are
-%% sent. Please fill with your choice and rename file to "watcher_confirdential.hrl"
+%% sent. Please fill with your choice and rename file to "watcher_confidential.hrl"
 
 
 -define(DEFAULT_ADDRESS, "your@choice.com").
