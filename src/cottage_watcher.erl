@@ -42,6 +42,7 @@
 
 -record(state, {sensor_pid,
 		alarm_pid, 
+		beacon_pid,
 		temps, 
 		pressures}).
 
@@ -191,10 +192,14 @@ handle_info(take_measurement, State) ->
     {ok,Datetime, Temp, Pressure} = one_measurement( State#state.sensor_pid, 10),
 
     Temps_list = State#state.temps,
-    NewTemps_list = update_list(Temps_list,{Datetime, round(Temp ,2)}, 1440),
+    NewTemps_list = update_list(Temps_list,
+				{Datetime, round(Temp ,2)}, 
+				1440),
 
     Pressures_list = State#state.pressures,
-    NewPressures_list = update_list(Pressures_list,{Datetime, round(Pressure ,2)}, 1440),
+    NewPressures_list = update_list(Pressures_list,
+				    {Datetime, round(Pressure ,2)}, 
+				    1440),
 
 
     erlang:send_after(?MEASUREMENT_INTERVAL, self(),take_measurement),
@@ -206,13 +211,20 @@ handle_info(take_measurement, State) ->
 
     cottage_alarm:process_measurement(Alarm_PID, {Datetime, Temp}),
 
+    Beacon_PID = case State#state.beacon_pid of
+		    0 -> erlang:whereis(cottage_beacon);
+		    _Thing ->  State#state.beacon_pid
+		end,
+
+    cottage_beacon:post_data(Beacon_PID, Temp, Pressure),
+
     %% Check if we should produce a daily report because a new day started
 
     send_daily_reports(?DEFAULT_ADDRESS, State, Datetime, State#state.temps),
 
-NewState = State#state{temps = NewTemps_list, 
-		       pressures = NewPressures_list,
-		       alarm_pid = Alarm_PID},
+    NewState = State#state{temps = NewTemps_list, 
+			   pressures = NewPressures_list,
+			   alarm_pid = Alarm_PID},
 
 {noreply, NewState}.
 

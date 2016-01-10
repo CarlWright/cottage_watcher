@@ -2,7 +2,7 @@
 
 This erlang application works on the Raspberry PI using the "bmp085" and "erlang_ale" library to interface using I2C to the BMP085 device. The BMP085 device measures both air temperature and air pressure.
 
-THe cottage_watcher checks air temperature and air pressure once a minute and records the measurements. After midnight each day, it prepares a report and line plot for each type of measurement and sends it to the destination you define.
+The cottage_watcher checks air temperature and air pressure once a minute and records the measurements. After midnight each day, it prepares a report and line plot for each type of measurement and sends it to the destination you define.
 
 It also checks the temperature every minute and will send a warning message the first time the termperature is outside a range you define. If the measurements persist, it sends URGENT messages detailing the temperature problem. If the problem goes away for a period you designate, it will forget any previous out-of-range measurements.
 
@@ -14,6 +14,26 @@ Before you can get air temperatures or pressures, you need to start a process to
 
 `cottage_watcher:minute_measures(<sensor ID>)` returns a list of 60 tuples. The tuples are the date-time, temperature (Fahrenheit) and the air pressure (Pa).
 
+### The System Specification File
+
+The file contains ERLAN term expressions, like {max, 12}., that set values that control the behavior of the Cottage Watcher applications.
+
+An example of the file is shown below:
+
+...
+{min,45}.
+{max,80}.
+{minutes_to_forget,30}.
+{minutes_to_watch_and_escalate, 5}.
+{minutes_to_watch_and_escalate_further, 15}.
+{url,"http:/beacon.servicelevel.net/cottage"}.
+...
+
+### Cottage Beacon
+
+To identify when the power and or internet has gone out at the cottage, we have an HTTP post done to a location that you select. This permits you to have a web application that receives these "posts" and can identify when the time between posts has been too long a time period. Th ePOST transaction send the temperature, air pressure and the date and time of the post.
+
+By receiving these and storing them, you can check on a regular basis whether the you are not getting the POSTs that mean all is well. YOu control the URL where the POST is done by changing the contents of the System Specification file. 
 
 ### Environment
 

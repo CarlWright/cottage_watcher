@@ -1,0 +1,15 @@
+{application, cottage_beacon,
+ [{description, "Application to process data about the environment of a cottage and 
+                send beacons as directed"},
+  {vsn, "1.0"},
+  {modules, []},
+  {registered,[cottage_beacon_sup]},
+  {applications, [kernel,
+		  stdlib,
+		  sasl,
+		  inets,
+		  erlang_ale,
+		  bmp085,
+		  cottage_watcher]},
+  {mod, {cottage_beacon_app, []}},
+  {start_phases , []}]}.
