@@ -20,14 +20,14 @@ The file contains ERLAN term expressions, like {max, 12}., that set values that 
 
 An example of the file is shown below:
 
-...
+```
 {min,45}.
 {max,80}.
 {minutes_to_forget,30}.
 {minutes_to_watch_and_escalate, 5}.
 {minutes_to_watch_and_escalate_further, 15}.
-{url,"http:/beacon.servicelevel.net/cottage"}.
-...
+{url,"http:/beacon.servicelevel.net/
+```
 
 ### Cottage Beacon
 
