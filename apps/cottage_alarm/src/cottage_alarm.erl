@@ -238,17 +238,28 @@ too_old( Item, State) ->
 
 
 set_parameters( Source_file, State) ->
-    {ok,Specs} = file:consult( Source_file),
-    Minimum = proplists:get_value(min, Specs),
-    Maximum = proplists:get_value(max, Specs),
-    Forget_period = proplists:get_value(minutes_to_forget, Specs),
-    First_escalation = proplists:get_value(minutes_to_watch_and_escalate, Specs),
-    Second_escalation = proplists:get_value(minutes_to_watch_and_escalate_further, Specs),
-    State#state{min = Minimum, 
-		max = Maximum, 
-		forget_period = Forget_period,
-		first_escalation = First_escalation,
-		second_escalation = Second_escalation}.
+    case  file:consult( Source_file) of
+	{ok,Specs} ->
+	    Minimum = proplists:get_value(min, Specs),
+	    Maximum = proplists:get_value(max, Specs),
+	    Forget_period = proplists:get_value(minutes_to_forget, Specs),
+	    First_escalation = proplists:get_value(minutes_to_watch_and_escalate, Specs),
+	    Second_escalation = proplists:get_value(minutes_to_watch_and_escalate_further, Specs),
+	    State#state{min = Minimum, 
+			max = Maximum, 
+			forget_period = Forget_period,
+			first_escalation = First_escalation,
+			second_escalation = Second_escalation};
+	{error,_} -> 
+	    io:format("Could not open ~p to load parameters~n",
+		      [Source_file]),
+	    State#state{min = 45,
+			max = 90, 
+			forget_period = 20,
+			first_escalation = 4,
+			second_escalation = 12}
+    end.
+
 
 
 which_measurements_during_last( Minutes, List) ->

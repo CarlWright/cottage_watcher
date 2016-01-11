@@ -9,7 +9,6 @@
 		  sasl,
 		  inets,
 		  erlang_ale,
-		  bmp085,
-		  cottage_watcher]},
+		  bmp085]},
   {mod, {cottage_beacon_app, []}},
   {start_phases , []}]}.

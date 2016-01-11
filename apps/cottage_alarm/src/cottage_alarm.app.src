@@ -8,7 +8,6 @@
 		  stdlib,
 		  sasl,
 		  erlang_ale,
-		  bmp085,
-		  cottage_watcher]},
+		  bmp085]},
   {mod, {cottage_alarm_app, []}},
   {start_phases , []}]}.
