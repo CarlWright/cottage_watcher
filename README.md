@@ -31,7 +31,7 @@ An example of the file is shown below:
 
 ### Cottage Beacon
 
-To identify when the power and or internet has gone out at the cottage, we have an HTTP post done to a location that you select. This permits you to have a web application that receives these "posts" and can identify when the time between posts has been too long a time period. Th ePOST transaction send the temperature, air pressure and the date and time of the post.
+To identify when the power and or internet has gone out at the cottage, we have an HTTP post done to a location that you select. This permits you to run a web application that receives these "posts" and identifies when the time between posts has been too long. The POST transaction sends the temperature, air pressure and the date and time of the post.
 
 By receiving these and storing them, you can check on a regular basis whether the you are not getting the POSTs that mean all is well. YOu control the URL where the POST is done by changing the contents of the System Specification file. 
 
