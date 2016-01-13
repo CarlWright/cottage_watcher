@@ -62,10 +62,10 @@ start_link() ->
 %%--------------------------------------------------------------------
 init([]) ->
     NewState = set_parameters( ?SPEC_FILE, #state{}),
-    case inets:start() of
-	ok -> ok;
-	{error,{already_started, inets}} -> ok
-    end,
+%%    case inets:start() of
+%%	ok -> ok;
+%%	{error,{already_started, inets}} -> ok
+%%    end,
     {ok,NewState}.
 
 %%--------------------------------------------------------------------

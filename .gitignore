@@ -5,3 +5,7 @@ temps.txt
 body.txt
 *.beam
 *.*~
+.erlang.mk/
+_rel/
+deps/
+relx
