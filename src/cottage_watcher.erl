@@ -332,7 +332,9 @@ report_dispatch(temperature, Measurements, Address, Subject, Attachment_location
     write_CSV( Measurements, 
 	       Attachment_location),
     clear_certain_files("temperature-plot"),
-    _Stuff = os:cmd(lists:concat(["./graphscript_temp.R ", 
+    Priv_dir = code:priv_dir(cottage_watcher),
+    _Stuff = os:cmd(lists:concat([Priv_dir,
+				  "/graphscript_temp.R ", 
 				  Attachment_location])),
     %% Get the files in the directory
     {ok, Files} = file:list_dir("./"),
@@ -358,7 +360,9 @@ report_dispatch(pressure, Measurements, Address, Subject, Attachment_location) -
     write_CSV( Measurements, 
 	       Attachment_location),
     clear_certain_files("pressure-plot"),
-    _Stuff = os:cmd(lists:concat(["./graphscript_pressure.R ", 
+    Priv_dir = code:priv_dir(cottage_watcher),
+    _Stuff = os:cmd(lists:concat([Priv_dir,
+				  "/graphscript_pressure.R ", 
 				  Attachment_location])),
     %% Get the files in the directory
     {ok, Files} = file:list_dir("./"),
