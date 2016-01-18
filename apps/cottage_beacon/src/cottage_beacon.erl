@@ -24,7 +24,8 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {url}).
+-record(state, {url,
+		priv_dir}).
 
 %%%===================================================================
 %%% API
@@ -146,9 +147,14 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 set_parameters( Source_file, State) ->
-    {ok,Specs} = file:consult( Source_file),
+    Priv_dir = code:priv_dir(cottage_watcher),
+    Filename = lists:concat([Priv_dir, 
+			     "/",
+			     Source_file]),
+    {ok,Specs} = file:consult( Filename),
     URL = proplists:get_value(url, Specs),
-    State#state{url = URL}.
+    State#state{url = URL, 
+		priv_dir = Priv_dir}.
 
 post_http_data(Temperature, Pressure, State) ->
     URL = State#state.url,

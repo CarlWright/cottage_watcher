@@ -31,6 +31,7 @@
 		forget_period, 
 		first_escalation, 
 		second_escalation, 
+		priv_dir,
 		hot_temps, 
 		cold_temps}).
 
@@ -70,7 +71,7 @@ start_link() ->
 %%--------------------------------------------------------------------
 init([]) ->
     NewState = set_parameters( ?SPEC_FILE, #state{}),
-    {ok,NewState#state{
+    {ok,NewState#state{priv_dir = code:priv_dir(cottage_watcher),
 		cold_temps = [],
 		hot_temps = []}
     }.
@@ -238,7 +239,10 @@ too_old( Item, State) ->
 
 
 set_parameters( Source_file, State) ->
-    case  file:consult( Source_file) of
+    Filename = lists:concat([code:priv_dir(cottage_watcher),
+			     "/",
+			     Source_file]),
+    case  file:consult( Filename) of
 	{ok,Specs} ->
 	    Minimum = proplists:get_value(min, Specs),
 	    Maximum = proplists:get_value(max, Specs),
@@ -249,15 +253,17 @@ set_parameters( Source_file, State) ->
 			max = Maximum, 
 			forget_period = Forget_period,
 			first_escalation = First_escalation,
-			second_escalation = Second_escalation};
+			second_escalation = Second_escalation,
+			priv_dir = code:priv_dir(cottage_alarm)};
 	{error,_} -> 
-	    io:format("Could not open ~p to load parameters~n",
-		      [Source_file]),
+	    io:format("Could not open ~p to load parameters~nSetting default values~n",
+		      [Filename]),
 	    State#state{min = 45,
 			max = 90, 
 			forget_period = 20,
 			first_escalation = 4,
-			second_escalation = 12}
+			second_escalation = 12,
+			priv_dir = code:priv_dir(cottage_alarm)}
     end.
 
 
