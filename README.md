@@ -16,7 +16,7 @@ Before you can get air temperatures or pressures, you need to start a process to
 
 ### The System Specification File
 
-The file contains ERLAN term expressions, like {max, 12}., that set values that control the behavior of the Cottage Watcher applications.
+The file contains ERLANG term expressions, like **{max, 12}.**, that set values to control the behavior of the Cottage Watcher applications.
 
 An example of the file is shown below:
 
