@@ -53,3 +53,13 @@ An example of the results for a daily temperature data file
 An example of the results for a daily pressure report
 
 ![Example temperature chart](examples/pressure-plot-2016-01-03.png)
+
+### The Hardware Arrangement
+
+![A look at the Raspberry PI](doc/a_look_at_the_pi.jpg)
+
+![It's a headless Raspberry PI](doc/headless_cottage_watcher.jpg)
+
+![A look at the whole Cottage Watcher](doc/IMG_20160120_105745.jpg)
+
+![A look at the sensor at the top of the "mast"](doc/shot of the sensor.jpg)
