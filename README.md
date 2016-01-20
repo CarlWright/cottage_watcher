@@ -56,8 +56,14 @@ An example of the results for a daily pressure report
 
 ### The Hardware Arrangement
 
+It's a headless Raspberry PI with the only connections being the power supply, an RJ-45 cable to my internet and the wires connecting to the sensor.
+
 ![It's a headless Raspberry PI](doc/headless_cottage_watcher.jpg)
 
+A look at the whole Cottage Watcher shows the Raspberry PI at the bottom and the sensor held away from the PI so that the PI doesn't influence the measurements.
+
 ![A look at the whole Cottage Watcher](doc/IMG_20160120_105745.jpg)
+
+A look at the sensor at the top of the "mast" shows the sensor on a little board from Adafruit with four wires soldered on and connected to pins on the Raspberry PI board.
 
 ![A look at the sensor at the top of the "mast"](doc/shot of the sensor.jpg)
