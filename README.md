@@ -29,11 +29,17 @@ An example of the file is shown below:
 {url,"http:/beacon.servicelevel.net/
 ```
 
+### Cottage Alarm
+
+This module takes the periodic readings from the cottage_watcher and compares them to minimum and maximum values set in the System Specification file. When the measurements are outside the acceptable range, an email warning of the deviation is sent. If the alarm condition continues beyond the "minutes_to_watch_and_escalate" value, the subject line of the alarm email gets more severe. This escalation happens again after the number of alarms grows further higher, the alarm warning grows more severe.
+
+The process of alarming involves checking all the previous remembered alarm conditions and discard anything older than "minutes_to_forget. then it counts the number of alarms remaing and sets the severity of the warning message based on the number compared to the two "escalate" values from the specification file.
+
 ### Cottage Beacon
 
-To identify when the power and or internet has gone out at the cottage, we have an HTTP post done to a location that you select. This permits you to run a web application that receives these "posts" and identifies when the time between posts has been too long. The POST transaction sends the temperature, air pressure and the date and time of the post.
+To identify when the power and/or internet has gone out at the cottage, we have an HTTP post done to a location that you select. This permits you to run a web application that receives these "posts" and identifies when the time between posts has been too long. The POST transaction sends the temperature, air pressure and the date and time of the post.
 
-By receiving these and storing them, you can check on a regular basis whether the you are not getting the POSTs that mean all is well. YOu control the URL where the POST is done by changing the contents of the System Specification file. 
+By receiving these and storing them, you can check on a regular basis whether the you are not getting the POSTs that mean "all is well". You control the URL where the POST is done by changing the contents of the System Specification file. 
 
 ### Environment
 
@@ -53,6 +59,12 @@ An example of the results for a daily temperature data file
 An example of the results for a daily pressure report
 
 ![Example temperature chart](examples/pressure-plot-2016-01-03.png)
+
+### Software Organization
+
+Software Module Hierarchy
+
+![Software module hierarchy](doc/cottage_watcher_hierarchy.png)
 
 ### The Hardware Arrangement
 
