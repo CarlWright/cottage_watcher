@@ -8,13 +8,15 @@ It also checks the temperature every minute and will send a warning message the 
 
 ### Initialization
 
-Before you can get air temperatures or pressures, you need to start a process to communicate with the BMP085 device. Call `cottage_watcher:start_link()` and get `{ok, <sensor pid>}`. Use the <sensor pid> value in all your calls to get temperatures and pressures.
+Before you can get air temperatures or pressures, you need to start a process to communicate with the BMP085 device. Call `cottage_watcher:start_link()` and get `{ok, <sensor PID>}`. Use the <sensor pid> value in all your calls to get temperatures and pressures.
 
 ### Getting measurements on command
 
-`cottage_watcher:minute_measures(<sensor ID>)` returns a list of 60 tuples. The tuples are the date-time, temperature (Fahrenheit) and the air pressure (Pa).
+`cottage_watcher:minute_measures(<sensor PID>)` returns a list of 60 tuples. The tuples are the date-time, temperature (Fahrenheit) and the air pressure (Pa).
 
 ### The System Specification File
+
+The behavior of the cottage_watcher is driven by the value in the System Specification file. This file is loaded when the application start or when you call the cottage_alarm or cottage_beacon modules with the "cottage_alarm:reset_parameters" or "cottage_beacon:reset_parameters" function. They are called with the parameters (<PID of module>, <filename string for the System Specification file to load>).
 
 The file contains ERLANG term expressions, like **{max, 12}.**, that set values to control the behavior of the Cottage Watcher applications.
 
