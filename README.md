@@ -16,7 +16,7 @@ Before you can get air temperatures or pressures, you need to start a process to
 
 ### The System Specification File
 
-The behavior of the cottage_watcher is driven by the value in the System Specification file. This file is loaded when the application start or when you call the cottage_alarm or cottage_beacon modules with the "cottage_alarm:reset_parameters" or "cottage_beacon:reset_parameters" function. They are called with the parameters (<PID of module>, <filename string for the System Specification file to load>).
+The behavior of the cottage_watcher is driven by the values in the System Specification file. This file is loaded when the application starts or when you call "cottage_watcher:reset_parameters" function with the parameters (<PID of module>, <filename string for the System Specification file to load>).
 
 The file contains ERLANG term expressions, like **{max, 12}.**, that set values to control the behavior of the Cottage Watcher applications.
 
@@ -81,3 +81,14 @@ A look at the whole Cottage Watcher shows the Raspberry PI at the bottom and the
 A look at the sensor at the top of the "mast" shows the sensor on a little board from Adafruit with four wires soldered on and connected to pins on the Raspberry PI board.
 
 ![A look at the sensor at the top of the "mast"](doc/shot of the sensor.jpg)
+
+### Wiring Map
+
+The following table identifies the wire connections between the temperature sensor and the Raspbery PI Revision 2
+
+Raspberry PI Pin | Sensor contact
+-----------------|---------------
+Pin 1 (3V3)      | VIN contact
+Pin 3 (SDA)      | SDA contact
+Pin 5 (SCL)      | SCL contact
+Pin 6 (Ground)   | GND contact

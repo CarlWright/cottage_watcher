@@ -23,6 +23,7 @@
 -export([start_link/0,
 	 send_temp_report/2,
 	 send_pressure_report/2,
+	 reset_parameters/2,
 	 write_CSV/2,
 	 minute_measures/1,
 	 min_temp/1,
@@ -92,6 +93,11 @@ avg_pressure(List) ->
     TempList = lists:map(fun(X) -> {_,_,Y} = X, Y end ,List),
     avg_measurement(TempList).
 
+
+%% reset the parameters from a System Specitifcation file
+
+reset_parameters(PID, Filename) ->
+    gen_server:cast( PID, {reset_parameters, Filename}).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -173,7 +179,12 @@ handle_cast({report_pressures, Address}, State) ->
 		    format_subject( Datetime, 
 				    "pressure"),
 		    ?PRESSURES_ATTACHMENT_FILE),
-    {noreply, State}.
+    {noreply, State};
+handle_cast({reset_parameters, Filename}, State) ->
+    cottage_alarm:reset_parameters(State#state.alarm_pid, 
+				   Filename),
+    cottage_beacon:reset_parameters(State#state.beacon_pid, 
+				    Filename).
 
 
 
