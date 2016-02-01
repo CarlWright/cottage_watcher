@@ -11,7 +11,7 @@ data_date<-strsplit(as.character(mean(temps$date))," ")[[1]][1]
 
 plotname<-paste("pressure-plot-",data_date,".png",sep="")
 png(plotname,width=850,height=500)
-plot(x=temps$date,y=temps$amount,type="l", xaxt="n",ylim=c(95000,110000),main=paste("Pressure vs. Time for",data_date,sep=" "),xlab="Time",ylab="Pressure (Pa)")
+plot(x=temps$date,y=temps$amount,type="l", xaxt="n",ylim=c(95000,98000),main=paste("Pressure vs. Time for",data_date,sep=" "),xlab="Time",ylab="Pressure (Pa)")
 ticklocs=round.POSIXt(quantile(temps$date,seq(from=0,to=1,length.out = 25)),units = "hours")
 axis.POSIXct(1,at=ticklocs,format="%l%p",labels=TRUE,tick=TRUE)
 dev.off()
