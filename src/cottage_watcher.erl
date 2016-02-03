@@ -37,6 +37,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
 -include( "cottage_watcher.hrl").
+-include_lib("eunit/include/eunit.hrl").
 
 -define(SERVER, ?MODULE).
 -define(MEASUREMENT_INTERVAL, 60 * 1000).
@@ -320,7 +321,7 @@ write_CSV(item, F, [Item | List]) ->
     write_CSV(item, F, List).
 
 
-%% adds a new value ot the beginning of a reversed list and trims to maximum length
+%% adds a new value to the beginning of a reversed list and trims to maximum length
 %%
 update_list(List,NewVal, Length) ->
     lists:sublist( [NewVal | List], Length).
@@ -465,3 +466,46 @@ clear_certain_files(String) ->
 			      file:delete(X) end, List),
 	    ok
     end.
+%%
+%% Tests
+%%
+strip_down_test() -> [1, 2, 3] = strip_down( [ {"aa",1}, 
+					       {abc, 2}, 
+					       {{{12,13,2015},{13,16,55}},3} ] ).
+
+
+avg_measurement_test() ->
+    A =  [
+	  {{{12,13,2015},{13,16,55}},1},
+	  {{{12,13,2015},{13,16,55}},2},
+	  {{{12,13,2015},{13,16,55}},3} ],
+    2.0 = avg_measurement(A).
+
+max_measurement_test() ->
+    A =  [
+	  {{{12,13,2015},{13,16,55}},1},
+	  {{{12,13,2015},{13,16,55}},2},
+	  {{{12,13,2015},{13,16,55}},3} ],
+    3 = max_measurement(A).
+
+min_measurement_test() ->
+    A =  [
+	  {{{12,13,2015},{13,16,55}},1},
+	  {{{12,13,2015},{13,16,55}},2},
+	  {{{12,13,2015},{13,16,55}},3} ],
+    1 = min_measurement(A).
+
+format_date_test() ->
+    "2016-02-13" = lists:flatten(format_date({{2016,2,13},{13,13,13}})).
+
+format_subject_test() ->
+    "Pressure data for 2015-12-15" = lists:flatten(format_subject( {{2015,12,15}, {8,12,56}}, "Pressure")).
+
+update_list_test() ->
+    [4,3,2] = update_list( [3,2,1],4,3).
+
+round_1_test() ->
+    3.15 = round(3.145623, 2).
+
+round_2_test() ->
+    3.0 = round(3.145623, 0).
